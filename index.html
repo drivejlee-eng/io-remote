@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>I/O 스위처 리모컨</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f2f2f7;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    h2 { margin-top: 0; font-size: 18px; color: #1c1c1e; }
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    .btn-connect { background-color: #007aff; color: white; }
+    .btn-on { background-color: #ff9500; color: white; }
+    .btn-off { background-color: #8e8e93; color: white; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn-group button { margin-bottom: 0; }
+    #status {
+      font-size: 14px;
+      color: #666;
+      word-break: break-all;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>기기 연결</h2>
+    <button class="btn-connect" onclick="connectDevice()">스위처 블루투스 연결</button>
+    <div id="status">연결 버튼을 눌러 SWITCHER 기기를 선택하세요.</div>
+  </div>
+
+  <div class="card">
+    <h2>스위치 1</h2>
+    <div class="btn-group">
+      <button class="btn-on" onclick="sendCmd(0x00)">ON</button>
+      <button class="btn-off" onclick="sendCmd(0x01)">OFF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>스위치 2</h2>
+    <div class="btn-group">
+      <button class="btn-on" onclick="sendCmd(0x05)">ON</button>
+      <button class="btn-off" onclick="sendCmd(0x03)">OFF</button>
+    </div>
+  </div>
+
+  <script>
+    const SERVICE_UUID = "0000150b-0000-1000-8000-00805f9b34fb";
+    const CHAR_UUID = "000015ba-0000-1000-8000-00805f9b34fb";
+    let characteristic = null;
+
+    function log(msg) {
+      document.getElementById('status').innerText = msg;
+    }
+
+    async function connectDevice() {
+      try {
+        log("스위처 검색 중...");
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "SWITCHER" }],
+          optionalServices: [SERVICE_UUID]
+        });
+
+        log("기기에 연결하는 중...");
+        const server = await device.gatt.connect();
+
+        log("서비스 찾는 중...");
+        const service = await server.getPrimaryService(SERVICE_UUID);
+
+        log("특성(UUID) 찾는 중...");
+        characteristic = await service.getCharacteristic(CHAR_UUID);
+
+        log("연결 완료! 스위치를 눌러 작동시키세요.");
+      } catch (err) {
+        log("연결 실패: " + err);
+      }
+    }
+
+    async function sendCmd(byteValue) {
+      if (!characteristic) {
+        alert("먼저 상단의 [스위처 블루투스 연결] 버튼을 눌러주세요.");
+        return;
+      }
+      try {
+        log("신호 전송 중...");
+        const payload = new Uint8Array([byteValue]);
+        await characteristic.writeValue(payload);
+        log("작동 성공 (0x0" + byteValue.toString(16) + ")");
+      } catch (err) {
+        log("신호 전송 실패: " + err);
+      }
+    }
+  </script>
+</body>
+</html>
